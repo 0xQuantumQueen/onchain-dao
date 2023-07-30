@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+
 interface IFakeNFTMarketplace {
     function getPrice() external view returns (uint256);
     function available(uint256 _tokenId) external view returns (bool);
@@ -14,7 +15,11 @@ interface ICryptoDevsNFT {
     view
     returns (uint256);
 }
-contract CryptoDevsDao is Ownable {
+
+contract CryptoDevsDAO is Ownable {
+    // We will write contract code here
+
+
 
 struct Proposal {
     uint256 nftTokenId;
@@ -87,7 +92,7 @@ function voteOnProposal(uint256 proposalIndex, Vote vote)
 modifier inactiveProposalOnly(uint256 proposalIndex){
     require(
         proposals[proposalIndex].deadline <= block.timestamp,
-        "DEADLINE_NOT_EXCEEDED"
+        "DEADLINE_EXCEEDED"
     );
     require(
         proposals[proposalIndex].executed == false,
@@ -96,6 +101,24 @@ modifier inactiveProposalOnly(uint256 proposalIndex){
     _;
 
     }
-
-
+function executeProposal(uint256 proposalIndex)
+    external
+    inactiveProposalOnly(proposalIndex)
+    {
+        Proposal storage proposal = proposals[proposalIndex];
+        if (proposal.yayVotes > proposal.nayVotes) {
+            uint256 nftprice = nftMarketplace.getPrice();
+            require(address(this).balance >= nftprice, "NOT_ENOUGH_FUNDS");
+            nftMarketplace.purchase{value: nftprice}(proposal.nftTokenId);
+        }
+        proposal.executed = true;
+    }
+function withdrawEther() external onlyOwner {
+    uint256 amount = address(this).balance;
+    require(amount>0,"nothing to withdraw, contract balance is empty");
+    (bool sent,) = payable(owner()).call{value:amount}("");
+    require(sent, "FAILED_TO_WITHDRAW_ETHER");
+}
+receive() external payable{}
+fallback() external payable{}
 }
